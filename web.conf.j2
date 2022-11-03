@@ -1,0 +1,12 @@
+<VirtualHost *:80>
+ServerAdmin admin@kamp.com
+ServerName bniinsurance.com
+DocumentRoot /var/www/html/laravel-realworld-example-app
+
+ <Directory /var/www/html/laravel-realworld-example-app>
+        AllowOverride All
+ </Directory>
+
+ErrorLog ${APACHE_LOG_DIR}/error.log
+CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>

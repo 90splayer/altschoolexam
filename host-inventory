@@ -1,0 +1,8 @@
+[webserver]
+
+138.68.135.241
+
+[all:vars]
+ansible_connection=ssh
+ansible_user=kamp
+ansible_ssh_pass=kamp

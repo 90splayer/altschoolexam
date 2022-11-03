@@ -1,0 +1,166 @@
+---
+- name: setup web server
+  hosts: all
+  become: yes
+  become_user: root
+  become_method: sudo
+
+  tasks:
+  - name: update cache
+    apt:
+      update_cache: yes
+
+  - name: update
+    command: sudo apt update
+
+  - name: install software properties
+    apt:
+      name: software-properties-common
+      state: present
+
+  # - name: add php repo
+  #  apt_repository:
+  #    repo: "ppa:ondrej/php"
+  #    update_cache: yes
+
+  - name: install php
+    apt:
+      name: php8.1
+      state: present
+
+  - name: install php dependencies
+    apt:
+      name: php8.1-pgsql
+      state: latest
+
+  - name: install php-curl
+    apt:
+      name: php8.1-curl
+      state: latest
+
+  - name: install php-cgi
+    apt:
+      name: php8.1-cgi
+      state: latest
+
+  - name: install php-xsl
+    apt:
+      name: php8.1-xsl
+      state: latest
+
+  - name: install php-mbstring
+    apt:
+      name: php8.1-mbstring
+      state: latest
+
+  - name: insatll php-zip
+    apt:
+      name: php8.1-zip
+      state: latest
+
+  - name : install php-xml
+    apt:
+      name: php8.1-xml
+      state: latest
+
+  - name: install php-intl
+    apt:
+      name: php8.1-intl
+      state: latest
+
+  - name: install php-libeapache2
+    apt:
+      name: libapache2-mod-php
+      state: latest
+
+  - name: Download php-composer
+    get_url:
+     url: https://getcomposer.org/installer
+     dest: /tmp/installer
+
+  - name: install composer
+    shell: cat /tmp/installer | php -- --install-dir=/usr/local/bin
+    args:
+      creates: /usr/local/bin/composer
+
+  - name: rename composer.phar to composer
+    shell: mv /usr/local/bin/composer.phar /usr/local/bin/composer
+    args:
+     creates: /usr/local/bin/composer
+
+  - name: make composer executable
+    file:
+      path: /usr/local/bin/composer
+      mode: a+x
+      state: file
+
+  - name: install apache2 server
+    apt:
+      name: apache2
+      state: present
+
+      #  - name: execute script command to install postgresql and create a data base
+      # script: /home/vagrant/ansibleexam/install.sh
+
+      # - name: install psycopg2
+      # apt:
+      # name: python3-pip
+      # state: present
+
+  - name: clone repository from github
+    git:
+      repo: https://github.com/f1amy/laravel-realworld-example-app.git
+      dest: /opt/laravel-realworld-example-app
+      force: yes
+      accept_hostkey: yes
+
+  - name: copy laravel project
+    shell: sudo cp -r /opt/laravel-realworld-example-app  /var/www/html/
+
+  - name: copy .env.example file to .env
+    shell: mv  /var/www/html/laravel-realworld-example-app/.env.example /var/www/html/laravel-realworld-example-app/.env
+
+  - name: update .env file
+    script: /home/vagrant/ansibleexam/env.sh
+    args:
+      working_dir: /var/www/html/laravel-realworld-example-app/.env
+
+  - name: change permission
+    command: sudo chgrp -R www-data /var/www/html/laravel-realworld-example-app
+
+  - name: change permission
+    shell: sudo chmod -R 775 /var/www/html/laravel-realworld-example-app/storage
+
+  - name: remove default apache vhost config from sites-enabled
+    file: name=/etc/apache2/sites-enabled/000-default.conf state=absent
+
+  - name: give user "kamp" ownnership to directory
+    command:  chown kamp -vR /var/www/html/laravel-realworld-example-app
+
+  - name: composer install dependencies
+    composer:
+       command: install
+       working_dir: /var/www/html/laravel-realworld-example-app
+    become: yes
+    become_user: kamp
+    become_method: su
+
+  - name: generate app key
+    command: php /var/www/html/laravel-realworld-example-app/artisan key:generate
+
+  - name: run php artisan migrate
+    command: php /var/www/html/laravel-realworld-example-app/artisan migrate
+
+  - name: create apache host domain
+    template: src=web.conf.j2 dest="/etc/apache2/sites-available/laravel-realworld-example-app.conf" owner=www-data group=www-data mode=0644
+
+
+  - name: update a2ensite
+    command: a2ensite laravel-realworld-example-app.conf
+
+
+  - name: enable the apache rewrite module
+    command:  a2enmod rewrite
+
+  - name: restart apache
+    command: systemctl restart apache2
